@@ -45,6 +45,7 @@ qtcreator-*
 
 # Vim
 .*.swp
+.ropeproject/
 
 # Catkin custom files
 CATKIN_IGNORE
