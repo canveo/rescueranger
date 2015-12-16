@@ -33,15 +33,7 @@
     <remap from="/visp_auto_tracker/image_raw" to="/ardrone/image_raw"/>
   </node>
 
-  <!-- Launch the usb camera acquisition node -->
-  <node pkg="usb_cam" type="usb_cam_node" name="usb_cam" output="screen">      
-    <param name="image_width" value="640" />
-    <param name="image_height" value="480" />
-    <param name="video_device" value="/dev/video0" />      
-    <param name="pixel_format" value="yuyv" />
-    <!-- rename the camera name topic into /camera/image_raw to match the one in visp_auto_tracker/models/calibration.ini file --> 
-    <param name="camera_name" value="/ardrone/image_raw" />
-    <param name="camera_info_url" value="package://visp_auto_tracker/models/calibration.ini" type="string" />
-  </node>
+  <!-- % rosrun image_view image_view image:=/camera/image_raw -->
+  <node pkg="image_view" type="image_view" name="ardrone_front_viewer" args="image:=/ardrone/image_raw"/>  
 
 </launch>
