@@ -2,6 +2,7 @@
 import rospy
 from geometry_msgs.msg import PoseStamped, Twist
 from std_msgs.msg import Empty       	 # for land/takeoff/emergency
+from std_msgs.msg import Int8
 from ardrone_autonomy.msg import Navdata  # for receiving navdata feedback
 from keyboard_controller import KeyboardController
 
@@ -55,34 +56,54 @@ class ObjectTracker(object):
         rospy.Subscriber(
             "/visp_auto_tracker/object_position",
             PoseStamped,
-            self.callback_visp)
+            self.callback_visp_pose)
+
+        # VISP STATE
+        self.visp_state = -1
+        rospy.Subscriber(
+            '/visp_auto_tracker/status',
+            Int8,
+            self.callback_visp_state)
+
+        self.visp_state_map = {
+            'Waiting': 0,  # Not detecting any pattern, just recieving images
+            'Detect_flash': 1,  # Pattern detected
+            # Model successfully initialized (from wrl & xml files)
+            'Detect_model': 2,
+            'Track_model': 3,   # Tracking model
+            # Detecting pattern in a small region around where the pattern was
+            # last seen
+            'Redetect_flash': 4,
+            'Detect_flash2': 5  # Detecting pattern in a the whole frame
+        }
+
         print('...')
         rospy.Subscriber(
             "/ardrone/predictedPose",
             PoseStamped,
-            self.callback_pred)
+            self.callback_ardrone_prediction)
         print('...initilized\n')
 
-    def NavdataCallback(self, navdata):
+    def callback_ardrone_navdata(self, navdata):
         # Although there is a lot of data in this packet, we're only interested
         # in the state at the moment
         if self.status != navdata.state:
-            rospy.loginfo("Recieved droneState: %d", navdata.state)
+            print("Recieved droneState: %d" % navdata.state)
             self.status = navdata.state
 
-    def SendTakeoff(self):
+    def ardrone_send_takeoff(self):
         # Send a takeoff message to the ardrone driver
         # Note we only send a takeoff message if the drone is landed - an
         # unexpected takeoff is not good!
         if self.status == DroneStatus.Landed:
             self.pubTakeoff.publish(Empty())
 
-    def SendLand(self):
+    def ardrone_send_land(self):
         # Send a landing message to the ardrone driver
         # Note we send this in all states, landing can do no harm
         self.pubLand.publish(Empty())
 
-    def SendEmergency(self):
+    def ardrone_send_emergency(self):
         # Send an emergency (or reset) message to the ardrone driver
         self.pubReset.publish(Empty())
 
@@ -103,10 +124,30 @@ class ObjectTracker(object):
         ):
             self.pubCommand.publish(self.command)
 
-    def callback_visp(self, pose):
+    def callback_visp_pose(self, pose):
         self.visp_pose = pose
 
-    def callback_pred(self, pose):
+    def callback_visp_state(self, data):
+        if data.data != self.visp_state:
+            self.visp_state = data.data
+
+            if data.data == 0:
+                print("ViSP: Not detecting any pattern, just recieving images")
+            if data.data == 1:
+                print("ViSP: Pattern detected")
+            if data.data == 2:
+                print(
+                    "ViSP: Model successfully initialized (from wrl & xml files)")
+            if data.data == 3:
+                print("ViSP: Tracking model")
+            if data.data == 4:
+                print(
+                    "ViSP: Detecting pattern in a small region around where the pattern was last seen")
+            if data.data == 5:
+                print("ViSP: Detecting pattern in a the whole frame")
+
+    # Predicted pose from tum_ardrone/drone_stateestimation, written to ardrone
+    def callback_ardrone_prediction(self, pose):
         self.pred_pose = pose
 
     def run(self):
@@ -121,13 +162,13 @@ class ObjectTracker(object):
         while not rospy.is_shutdown():
             key = self.keyboard.get_key()
             if key == self.keyboard.cmd_map['emergency']:
-                self.SendEmergency()
+                self.ardrone_send_emergency()
 
             if state == 0:
                 # wait for start command
                 if True:
                     state = 1
-                    rospy.loginfo("Taking off")
+                    print("Taking off")
             if state == 1:  # takeoff
                 pass
                 # self.SendTakeoff()
@@ -143,9 +184,8 @@ class ObjectTracker(object):
                 # publish go forward one meter
                 if True:  # vispFoundMarker
                     state = 5  # change later
-                    rospy.loginfo("Landing")
+                    print("Landing")
             if state == 5:
-                self.SendLand()
                 if self.status == DroneStatus.Landed:
                     state = 6
             if state == 6:
@@ -160,6 +200,7 @@ class ObjectTracker(object):
             self.pub.publish(twist)
             r.sleep()
         print('\n\nRescuranger is terminating.\n')
+        self.ardrone_send_emergency()
         # spin() simply keeps python from exiting until this node is stopped
 
 
