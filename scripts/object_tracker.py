@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 import rospy
 from geometry_msgs.msg import PoseStamped, Twist
-from std_msgs.msg import Empty, Int8       	 # for land/takeoff/emergency
+from std_msgs.msg import Empty       	 # for land/takeoff/emergency
 from ardrone_autonomy.msg import Navdata # for receiving navdata feedback
-
+from std_msgs.msg import Int8
 
 class DroneStatus(object):
     Emergency = 0
@@ -103,21 +103,22 @@ class ObjectTracker(object):
     def callback_visp_pose(self, pose):
         self.visp_pose = pose
     
-    def callback_visp_state(self, status):
-        self.visp_state = status
-        
-        if status == 0:
-            print("ViSP: Not detecting any pattern, just recieving images")
-        if status == 1:
-            print("ViSP: Pattern detected")
-        if status == 2:
-            print("ViSP: Model successfully initialized (from wrl & xml files)")
-        if status == 3:
-            print("ViSP: Tracking model")
-        if status == 4:
-            print("ViSP: Detecting pattern in a small region around where the pattern was last seen")
-        if status == 5:
-            print("ViSP: Detecting pattern in a the whole frame")
+    def callback_visp_state(self, data):
+        if data.data != self.visp_state:
+            self.visp_state = data.data
+
+            if data.data == 0:
+                print("ViSP: Not detecting any pattern, just recieving images")
+            if data.data == 1:
+                print("ViSP: Pattern detected")
+            if data.data == 2:
+                print("ViSP: Model successfully initialized (from wrl & xml files)")
+            if data.data == 3:
+                print("ViSP: Tracking model")
+            if data.data == 4:
+                print("ViSP: Detecting pattern in a small region around where the pattern was last seen")
+            if data.data == 5:
+                print("ViSP: Detecting pattern in a the whole frame")
 
     # Predicted pose from tum_ardrone/drone_stateestimation, written to ardrone
     def callback_ardrone_prediction(self, pose):
@@ -163,6 +164,7 @@ class ObjectTracker(object):
             self.pub.publish(twist)
             r.sleep()
         print '\n\nRescuranger is terminating.\n'
+        self.ardrone_send_emergency()
         # spin() simply keeps python from exiting until this node is stopped
 
 
