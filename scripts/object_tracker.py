@@ -36,7 +36,7 @@ class ObjectTracker(object):
         self.subNavdata = rospy.Subscriber(
             '/ardrone/navdata',
             Navdata,
-            self.NavdataCallback)
+            self.callback_ardrone_navdata)
 
         # Allow the controller to publish to the /ardrone/takeoff, land and
         # reset topics
@@ -78,10 +78,10 @@ class ObjectTracker(object):
         }
 
         print('...')
-        rospy.Subscriber(
-            "/ardrone/predictedPose",
-            PoseStamped,
-            self.callback_ardrone_prediction)
+        # rospy.Subscriber(
+        #     "/ardrone/predictedPose",
+        #     PoseStamped,
+        #     self.callback_ardrone_prediction)
         print('...initilized\n')
 
     def callback_ardrone_navdata(self, navdata):
@@ -171,12 +171,12 @@ class ObjectTracker(object):
                     print("Taking off")
             if state == 1:  # takeoff
                 pass
-                # self.SendTakeoff()
+                # self.ardrone_send_takeoff()
                 # if (
-                # (self.status == DroneStatus.Flying) or
-                # (self.status == DroneStatus.Hovering)
+                #     (self.status == DroneStatus.Flying) or
+                #     (self.status == DroneStatus.Hovering)
                 # ):
-                #    state = 2
+                #     state = 2
             if state == 2:  # hover over marker
                 pass
             if state == 3:  # search for marker

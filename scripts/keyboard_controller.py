@@ -17,8 +17,8 @@ class KeyboardController(object):
 
     def callback_keyboard(self, data):
         if data.code != self.last_key:
-            self.last_key = data.code
             self.key_read = False
+            self.last_key = data.code
 
     def get_key(self):
         if not self.key_read:
