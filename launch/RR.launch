@@ -34,6 +34,6 @@
   </node>
 
   <!-- % rosrun image_view image_view image:=/camera/image_raw -->
-  <node pkg="image_view" type="image_view" name="ardrone_front_viewer" args="image:=/ardrone/image_raw"/>  
+  <!--<node pkg="image_view" type="image_view" name="ardrone_front_viewer" args="image:=/ardrone/image_raw"/>  -->
 
 </launch>
