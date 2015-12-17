@@ -1,0 +1,39 @@
+<!-- -*- xml -*-
+
+     This tutorial relies on a live video sequence acquired with an 
+     usb camera in front of a QR code planar target. The model 
+     corresponding to this target is given into the models directory 
+     of this package.
+
+     Camera parameters are set as rosparam parameters. They need to be changed
+     to be the one of your camera.
+
+     See http://www.ros.org/wiki/visp_auto_tracker for more information.
+
+  -->
+<launch>	
+  <arg name="droneip" default="192.168.1.1" />
+  <node name="ardrone_driver" pkg="ardrone_autonomy" type="ardrone_driver" output="screen" args="-ip $(arg droneip)">
+    <param name="navdata_demo" value="False" />
+    <param name="realtime_navdata" value="True" />
+    <param name="realtime_video" value="True" />
+    <param name="looprate" value="30" />
+  </node>
+  
+  <node name="drone_stateestimation" pkg="tum_ardrone" type="drone_stateestimation">
+  </node>
+  
+  <!-- Launch the tracking node -->
+  <node pkg="visp_auto_tracker" type="visp_auto_tracker" name="visp_auto_tracker" output="screen">
+    <param name="model_path" value="$(find visp_auto_tracker)/models" />
+    <param name="model_name" value="pattern" />
+    <param name="debug_display" value="True" />
+	      
+    <remap from="/visp_auto_tracker/camera_info" to="/ardrone/camera_info"/>
+    <remap from="/visp_auto_tracker/image_raw" to="/ardrone/image_raw"/>
+  </node>
+
+  <!-- % rosrun image_view image_view image:=/camera/image_raw -->
+  <!--<node pkg="image_view" type="image_view" name="ardrone_front_viewer" args="image:=/ardrone/image_raw"/>  -->
+
+</launch>
