@@ -1,8 +1,11 @@
 <!--
     Launch with 
-        roslaunch rescueranger ardrone_camera_calibration_simple.launch activeCamera:=front activeCamera:=0
-    for front camera or 
-        roslaunch rescueranger ardrone_camera_calibration_simple.launch activeCamera:=bottom activeCamera:=1
+        roslaunch rescueranger ardrone_camera_calibration_simple.launch activeCamera:=front
+    for front camera
+    
+        roslaunch rescueranger ardrone_camera_calibration_simple.launch activeCamera:=bottom
+    Then in a new terminal send
+        rosservice call /ardrone/setcamchannel 1
     for bottom camera
 
 
@@ -24,9 +27,8 @@ rosrun camera_calibration cameracalibrator.py [dashdash]pattern 'circles' [dashd
     <param name="realtime_navdata" value="True" />
     <param name="realtime_video" value="True" />
     <param name="looprate" value="30" />
-    <param name="video_channel" value="activeCameraNr" /> <!-- Select camera, 0 for front, 1 for bottom -->
   </node>
   
-  <node name="cameracalibratorFront" pkg="camera_calibration" type="cameracalibrator.py" args="--pattern 'circles' --size 6x6 --square 0.02 image:=/ardrone/$(arg activeCamera)/image_raw camera:=/ardrone/$(arg activeCamera)" output="screen" launch-prefix="xterm -e">
+  <node name="cameracalibratorFront" pkg="camera_calibration" type="cameracalibrator.py" args="--pattern 'circles' --size 6x6 --square 0.02 image:=/ardrone/$(arg activeCamera)/image_raw camera:=/ardrone/$(arg activeCamera)" output="screen" launch-prefix="xterm -e" respawn="true" respawn_delay="5">
   </node>
 </launch>
