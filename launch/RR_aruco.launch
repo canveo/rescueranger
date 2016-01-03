@@ -1,0 +1,50 @@
+<!-- -*- xml -*-
+
+     This tutorial relies on a live video sequence acquired with an 
+     usb camera in front of a QR code planar target. The model 
+     corresponding to this target is given into the models directory 
+     of this package.
+
+     Camera parameters are set as rosparam parameters. They need to be changed
+     to be the one of your camera.
+
+     See http://www.ros.org/wiki/visp_auto_tracker for more information.
+
+  -->
+<launch>	
+  <arg name="droneip" default="192.168.1.1" />
+  <node name="ardrone_driver" pkg="ardrone_autonomy" type="ardrone_driver" output="screen" args="-ip $(arg droneip)">
+    <param name="navdata_demo" value="False" />
+    <param name="realtime_navdata" value="True" />
+    <param name="realtime_video" value="True" />
+    <param name="looprate" value="30" />
+  </node>
+  <node name="drone_stateestimation" pkg="tum_ardrone" type="drone_stateestimation">
+  </node>
+  
+  <!-- Launch the tracking node -->
+  <arg name="markerId" default="582"/>
+  <arg name="markerSize" default="0.034"/>
+  <arg name="eye" default="left"/>
+  <arg name="marker_frame" default="aruco_marker_frame"/>
+  <arg name="ref_frame" default=""/>
+  <node pkg="aruco_ros" type="single" name="aruco_single">
+    <remap from="/camera_info" to="/ardrone/camera_info" />
+    <remap from="/image" to="/ardrone/image_raw" />
+    <param name="image_is_rectified" value="True"/>
+    <param name="marker_size" value="$(arg markerSize)"/>
+    <param name="reference_frame" value="$(arg ref_frame)"/>
+    <param name="camera_frame" value="stereo_gazebo_$(arg eye)_camera_optical_frame"/>
+    <param name="marker_frame" value="$(arg marker_frame)" />
+  </node>
+
+  <!-- % rosrun image_view image_view image:=/camera/image_raw -->
+  <!--<node pkg="image_view" type="image_view" name="ardrone_front_viewer" args="image:=/ardrone/image_raw"/>  -->
+
+  <!-- Launch the ArUco output window -->
+  <arg name="image_view" default="/aruco_single/result"/>
+  <node name="cam_out" pkg="image_view" type="image_view" >
+    <remap from="image" to="/aruco_single/result" />
+  </node>
+
+</launch>
