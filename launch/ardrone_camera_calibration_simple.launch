@@ -15,12 +15,16 @@ rosrun camera_calibration cameracalibrator.py [dashdash]pattern 'circles' [dashd
 
 Calibrate bottom camera
 rosrun camera_calibration cameracalibrator.py [dashdash]pattern 'circles' [dashdash]size 6x6 [dashdash]square 0.02 image:=/ardrone/bottom/image_raw camera:=/ardrone/bottom
+
+<node name="ardrone_set_camera" pkg="rescueranger" type="ardrone_set_camera.py" output="screen" launch-prefix="xterm -e" respawn="true">
+  </node>
   -->
 
-<launch>	
+<launch>
   <arg name="droneip" default="192.168.1.1" />
   <arg name="activeCamera" default="front" />
   <arg name="activeCameraNr" default="0" />
+  <param name="cameraID" value="$(arg activeCameraNr)" />
   
   <node name="ardrone_driver" pkg="ardrone_autonomy" type="ardrone_driver" output="screen" args="-ip $(arg droneip)" launch-prefix="xterm -e" required="true">
     <param name="navdata_demo" value="False" />
