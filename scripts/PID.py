@@ -11,6 +11,9 @@ class PID(object):
         self.Ki = I
         self.Kd = D
         
+        self.DTerm = 0
+        self.lowpass_D_constant = 0.9
+        
         self.saturation = saturation
 
         self.sample_time = 1/100
@@ -42,7 +45,7 @@ class PID(object):
         d_error = error - self.last_error
 
         if (dt >= self.sample_time):
-            self.PTerm = self.Kp * error
+            self.PTerm = error
             self.ITerm += error * dt
 
             if (self.ITerm < -self.windup_guard):
@@ -50,14 +53,17 @@ class PID(object):
             elif (self.ITerm > self.windup_guard):
                 self.ITerm = self.windup_guard
 
-            self.DTerm = 0.0
+            
+            
             if dt > 0:
-                self.DTerm = d_error / dt
+                self.DTerm =self.lowpass_D_constant*self.DTerm + (1-self.lowpass_D_constant) *d_error / dt
+            else:
+                self.DTerm = self.lowpass_D_constant*self.DTerm
 
             # Remember last time and last error for next calculation
             self.last_time = self.current_time
             self.last_error = error
-            unsaturated_output = self.PTerm + (self.Ki * self.ITerm) + (self.Kd * self.DTerm)
+            unsaturated_output = (self.Kp * self.PTerm) + (self.Ki * self.ITerm) + (self.Kd * self.DTerm)
             if unsaturated_output > self.saturation:
                 self.output = self.saturation
             elif unsaturated_output < -self.saturation:

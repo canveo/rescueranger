@@ -3,6 +3,7 @@ import math
 import rospy
 import PID
 import time
+import sys
 from geometry_msgs.msg import Twist
 from tf2_msgs.msg import TFMessage
 from std_msgs.msg import Empty       	 # for land/takeoff/emergency
@@ -30,26 +31,46 @@ class ObjectTracker(object):
         self.state = 0
         self.ardrone_state = -1
         
-        self.pidx = PID.PID(Px, Ix, Dx)
-        self.pidy = PID.PID(Py, Iy, Dy)
-        self.pidz = PID.PID(Pz, Iz, Dz)
-        self.pidyaw = PID.PID(Pyaw, Iyaw, Dyaw)
+        self.Px = 0.05
+        self.Ix = 0
+        self.Dx = 0.025
+        self.saturation_x = 0.12
+        
+        self.Py = 0.05
+        self.Iy = 0
+        self.Dy = 0.025
+        self.saturation_y = 0.1
+        
+        self.Pz = 0.5
+        self.Iz = 0.01
+        self.Dz = 0
+        self.saturation_z = 0.4
+        
+        self.Pyaw = 0.6
+        self.Iyaw = 0.05
+        self.Dyaw = 0.3
+        self.saturation_yaw = 0.4
+        
+        self.pidx = PID.PID(self.Px, self.Ix, self.Dx, self.saturation_x)
+        self.pidy = PID.PID(self.Py, self.Iy, self.Dy, self.saturation_y)
+        self.pidz = PID.PID(self.Pz, self.Iz, self.Dz, self.saturation_z)
+        self.pidyaw = PID.PID(self.Pyaw, self.Iyaw, self.Dyaw, self.saturation_yaw)
                 
         self.smplTime = 1/60
         
         self.height_goal = 0.0
         self.horizontal_goal = 0.0
-        self.distance_goal = 1.5
+        self.distance_goal = 1.4
         self.yaw_goal = 0.0
         
         self.pidx.setReference(self.distance_goal)
         self.pidy.setReference(self.horizontal_goal)
         self.pidz.setReference(self.height_goal)
         self.pidyaw.setReference(self.yaw_goal)
-        self.pidx.setSampleTime(smplTime)
-        self.pidy.setSampleTime(smplTime)
-        self.pidz.setSampleTime(smplTime)
-        self.pidyaw.setSampleTime(smplTime)
+        self.pidx.setSampleTime(self.smplTime)
+        self.pidy.setSampleTime(self.smplTime)
+        self.pidz.setSampleTime(self.smplTime)
+        self.pidyaw.setSampleTime(self.smplTime)
         
         self.estimated_marker = None
         self.marker_seen = False
@@ -207,44 +228,42 @@ class ObjectTracker(object):
                     marker_roll = math.atan2(2*(q0*q3 + q1*q2), 1 - 2*(q2**2 + q3**2))
                     marker_pitch = math.atan2(2*(q0*q1 + q2*q3), 1 - 2*(q1**2 + q2**2))
                     marker_yaw = math.asin(2*(q0*q2 - q3*q1))
-                    #print((round(marker_roll*180/math.pi),round(marker_pitch*180/math.pi),round(marker_yaw*180/math.pi)))                    
+                    #print((round(marker_roll*180/math.pi),round(marker_pitch*180/math.pi),round(marker_yaw*180/math.pi)))             
+                    # Calculate error       
                     height_err = self.height_goal - marker_z
                     horizontal_err = self.horizontal_goal - marker_yaw
                     distance_err = self.distance_goal - (marker_z**2 + marker_y**2 + marker_x**2)**0.5
                     yaw_err = self.yaw_goal - marker_y
                     
-                    # Quad distance from marker error
-                    if distance_err < 0: # To far from marker
-                        x_vel = 0.02 # Move forward
-                    else:
-                        x_vel = -0.02 # Move backward
-
-                    # Quad horizontal error relative marker
-                    if horizontal_err > 0: # To far right of the marker
-                        y_vel = 0.02 # Move left
-                    else:
-                        y_vel = -0.02 # Move right
-
-                    # Quad heigt error
-                    if height_err > 0: # To low relative the marker
-                        z_vel = 0.1 # Move up
-                    else:
-                        z_vel = -0.1 # Move down
-
-                    # Quad yaw from horizontal drifting error
-                    if yaw_err > 0: # Marker in the left of the image
-                        yaw_vel = -0.12 # Turn anticlockwise
-                    else:
-                        yaw_vel = 0.12 # Turn clockwise
+                    # 
+                    current_height = marker_z
+                    #current_horizontal = marker_yaw
+                    #current_horizontal = marker_y + marker_yaw
+                    current_horizontal = marker_yaw - marker_y
+                    real_distance = (marker_z**2 + marker_y**2 + marker_x**2)**0.5
+                    current_distance = marker_x
+                    current_yaw = math.sin(-marker_y/real_distance)
                     
-                    x_vel = x_vel
-                    y_vel = y_vel
-                    z_vel = z_vel
-                    yaw_vel = yaw_vel
-                    print((x_vel, y_vel, z_vel, yaw_vel))
+                    # Update the PIDs
+                    self.pidx.updatePID(current_distance)
+                    self.pidy.updatePID(current_horizontal)
+                    self.pidz.updatePID(current_height)
+                    self.pidyaw.updatePID(current_yaw)
+                    
+                    x_vel = -self.pidx.output
+                    y_vel = self.pidy.output
+                    z_vel = self.pidz.output
+                    yaw_vel = self.pidyaw.output                    
+                    
+                    #x_vel = 0
+                    #y_vel = 0
+                    #z_vel = 0
+                    #yaw_vel = 0
+                    
+                    sys.stderr.write("\x1b[2J\x1b[H")
+                    print((x_vel, y_vel, z_vel, yaw_vel, current_yaw))
                     self.ardrone_set_xyzy(x_vel, y_vel, z_vel, yaw_vel)
                     #self.ardrone_set_xyzy(0, 0, 0, 0)
-                    #print((x_err, y_err, z_err, yaw_err))
                 else:
                     self.ardrone_set_xyzy(0, 0, 0, 0)
 
