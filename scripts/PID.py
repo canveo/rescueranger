@@ -5,11 +5,13 @@ import time
 
 class PID(object):
 
-    def __init__(self, P=0.2, I=0.0, D=0.0):
+    def __init__(self, P=0.2, I=0.0, D=0.0, saturation=0.05):
 
         self.Kp = P
         self.Ki = I
         self.Kd = D
+        
+        self.saturation = saturation
 
         self.sample_time = 1/100
         self.current_time = time.time()
@@ -55,8 +57,13 @@ class PID(object):
             # Remember last time and last error for next calculation
             self.last_time = self.current_time
             self.last_error = error
-
-            self.output = self.PTerm + (self.Ki * self.ITerm) + (self.Kd * self.DTerm)
+            unsaturated_output = self.PTerm + (self.Ki * self.ITerm) + (self.Kd * self.DTerm)
+            if unsaturated_output > self.saturation:
+                self.output = self.saturation
+            elif unsaturated_output < -self.saturation:
+                self.output = -self.saturation
+            else:
+                self.output = unsaturated_output
 
     def setKp(self, P):
         self.Kp = P

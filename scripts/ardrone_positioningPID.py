@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 import math
 import rospy
-#from collections import deque # For handeling queue/stack
+import PID
+import time
 from geometry_msgs.msg import Twist
 from tf2_msgs.msg import TFMessage
 from std_msgs.msg import Empty       	 # for land/takeoff/emergency
 from std_msgs.msg import Int8
 from ardrone_autonomy.msg import Navdata  # for receiving navdata feedback
 from keyboard_controller import KeyboardController
-
+from visualization_msgs.msg import Marker # for Marker estimation from viewpoint_estimation
 
 class DroneStatus(object):
     Emergency = 0
@@ -28,9 +29,35 @@ class ObjectTracker(object):
     def __init__(self):
         self.state = 0
         self.ardrone_state = -1
-        print('Rescueranger initilizing')
-        self.vision_pose = TFMessage()
+        
+        self.pidx = PID.PID(Px, Ix, Dx)
+        self.pidy = PID.PID(Py, Iy, Dy)
+        self.pidz = PID.PID(Pz, Iz, Dz)
+        self.pidyaw = PID.PID(Pyaw, Iyaw, Dyaw)
+                
+        self.smplTime = 1/60
+        
+        self.height_goal = 0.0
+        self.horizontal_goal = 0.0
+        self.distance_goal = 1.5
+        self.yaw_goal = 0.0
+        
+        self.pidx.setReference(self.distance_goal)
+        self.pidy.setReference(self.horizontal_goal)
+        self.pidz.setReference(self.height_goal)
+        self.pidyaw.setReference(self.yaw_goal)
+        self.pidx.setSampleTime(smplTime)
+        self.pidy.setSampleTime(smplTime)
+        self.pidz.setSampleTime(smplTime)
+        self.pidyaw.setSampleTime(smplTime)
+        
+        self.estimated_marker = None
         self.marker_seen = False
+        self.marker_timeout_threshold = 0.2
+        self.marker_last_seen = 0 - self.marker_timeout_threshold
+        
+        print('Rescueranger initilizing')
+        
         self.pub = rospy.Publisher(
             'object_tracker/pref_pos',
             Twist,
@@ -59,35 +86,19 @@ class ObjectTracker(object):
 
         print('...')
         rospy.init_node('object_tracker', anonymous=True)
+            
+        # Marker pose subscriber
         rospy.Subscriber(
-            "/tf",
-            TFMessage,
-            self.callback_vision_pose)
+            '/Estimated_marker',
+            Marker,
+            self.callback_estimated_marker_pose)
 
-        # VISP STATE
-        self.visp_state = -1
-        rospy.Subscriber(
-            '/visp_auto_tracker/status',
-            Int8,
-            self.callback_visp_state)
-
-        self.visp_state_map = {
+        # Marker State
+        self.estimated_marker_state_map = {
             'Waiting': 0,  # Not detecting any pattern, just recieving images
-            'Detect_flash': 1,  # Pattern detected
-            # Model successfully initialized (from wrl & xml files)
-            'Detect_model': 2,
-            'Track_model': 3,   # Tracking model
-            # Detecting pattern in a small region around where the pattern was
-            # last seen
-            'Redetect_flash': 4,
-            'Detect_flash2': 5  # Detecting pattern in a the whole frame
+            'Detected_marker': 1,  # Pattern detected
         }
 
-        print('...')
-        # rospy.Subscriber(
-        #     "/ardrone/predictedPose",
-        #     PoseStamped,
-        #     self.callback_ardrone_prediction)
         print('...initilized\n')
         rospy.on_shutdown(self.ardrone_send_land)
 
@@ -134,41 +145,28 @@ class ObjectTracker(object):
 
     def ardrone_send_command(self,event):
         # The previously set command is then sent out periodically if the drone is flying
-        if self.ardrone_state == DroneStatus.Flying or self.ardrone_state == DroneStatus.GotoHover or self.ardrone_state == DroneStatus.Hovering:
+        if (
+            self.ardrone_state == DroneStatus.Flying or 
+            self.ardrone_state == DroneStatus.GotoHover or
+            self.ardrone_state == DroneStatus.Hovering
+        ):
             self.pubCommand.publish(self.command)
-
-    def callback_vision_pose(self, pose):
-        if pose.transforms[0].child_frame_id == "ardrone_base_frontcam":
-            if pose.transforms[0].header.frame_id != "ar_marker":
-                self.marker_seen = False
-            else:
-                self.marker_seen = True
-                self.vision_pose = pose
-
-    def callback_visp_state(self, data):
-        if data.data != self.visp_state:
-            self.visp_state = data.data
-
-            if data.data == 0:
-                print("ViSP: Not detecting any pattern, just recieving images")
-            if data.data == 1:
-                print("ViSP: Pattern detected")
-            if data.data == 2:
-                print(
-                    "ViSP: Model successfully initialized (from wrl & xml files)")
-            if data.data == 3:
-                print("ViSP: Tracking model")
-            if data.data == 4:
-                print(
-                    "ViSP: Detecting pattern in a small region around where the pattern was last seen")
-            if data.data == 5:
-                print("ViSP: Detecting pattern in a the whole frame")
 
     # Predicted pose from tum_ardrone/drone_stateestimation, written to ardrone
     def callback_ardrone_prediction(self, pose):
         self.pred_pose = pose
-
-    x_err_queue = deque([])
+    
+    #TODO fix this callback: 
+    def callback_estimated_marker_pose(self, Marker):
+        self.marker_last_seen = time.time()
+        self.estimated_marker = Marker
+                
+    #################################################################################
+    #################################################################################
+    # The main running loop
+    # This is where all the intresting magic happens
+    #################################################################################
+    #################################################################################
     def run(self):
         twist = Twist()
         # Publish the estimated waypoint on object_tracker/pref_pos
@@ -176,59 +174,77 @@ class ObjectTracker(object):
         # 0=wait, 1=takeoff, 2=hover over marker,  3= search for marker, 4=
         # aproach marker, 5= land, 6= do nothing
         while not rospy.is_shutdown():
+            dt = time.time() - self.marker_last_seen
+            if dt < self.marker_timeout_threshold:
+                self.marker_seen = True
+            else:
+                self.marker_seen = False
             if self.state == 0:
                 # wait for start command
                 pass
             if self.state == 1:  # takeoff
-                pass
                 self.ardrone_send_takeoff()
                 if (
                     (self.ardrone_state == DroneStatus.Hovering)
                 ):
                     self.state = 2
                     print("Hovering")
+                #self.state = 2 #TODO Remove this, this ignores actual flight!
             if self.state == 2:  # hover over marker
                 if self.marker_seen:
-                    vision_x = self.vision_pose.transforms[0].transform.translation.x
-                    vision_y = self.vision_pose.transforms[0].transform.translation.y
-                    vision_z = self.vision_pose.transforms[0].transform.translation.z
-                    q1 = self.vision_pose.transforms[0].transform.rotation.x
-                    q2 = self.vision_pose.transforms[0].transform.rotation.y
-                    q3 = self.vision_pose.transforms[0].transform.rotation.z
-                    q0 = self.vision_pose.transforms[0].transform.rotation.w
-                    yaw = math.atan2(2*(q0*q3 + q1*q2), 1 - 2*(q2**2 + q3**2))
-                    x_goal = 0.0
-                    y_goal = 0.0
-                    z_goal = 0.9
-                    yaw_goal = 0.0
-                    x_err = x_goal - vision_x
-                    y_err = y_goal - vision_y
-                    z_err = z_goal - vision_z
-                    yaw_err = yaw_goal - yaw
-                    if len(x_err_queue) == 4:
-                        x_err_queue.append(x_err)
-                        
+                    # Remap camera cooridnate frame to drone coordinate frame
+                    # X: Positive forward drone frame
+                    # Y: Positive left drone frame
+                    # Z: Positive up drone frame
+                    # Yaw: Positive clockwise drone frame
+                    marker_z = self.estimated_marker.pose.position.x
+                    marker_y = -self.estimated_marker.pose.position.y
+                    marker_x = self.estimated_marker.pose.position.z
+                    q0 = self.estimated_marker.pose.orientation.w
+                    q1 = self.estimated_marker.pose.orientation.x
+                    q2 = self.estimated_marker.pose.orientation.y
+                    q3 = self.estimated_marker.pose.orientation.z
+                    marker_roll = math.atan2(2*(q0*q3 + q1*q2), 1 - 2*(q2**2 + q3**2))
+                    marker_pitch = math.atan2(2*(q0*q1 + q2*q3), 1 - 2*(q1**2 + q2**2))
+                    marker_yaw = math.asin(2*(q0*q2 - q3*q1))
+                    #print((round(marker_roll*180/math.pi),round(marker_pitch*180/math.pi),round(marker_yaw*180/math.pi)))                    
+                    height_err = self.height_goal - marker_z
+                    horizontal_err = self.horizontal_goal - marker_yaw
+                    distance_err = self.distance_goal - (marker_z**2 + marker_y**2 + marker_x**2)**0.5
+                    yaw_err = self.yaw_goal - marker_y
                     
+                    # Quad distance from marker error
+                    if distance_err < 0: # To far from marker
+                        x_vel = 0.02 # Move forward
+                    else:
+                        x_vel = -0.02 # Move backward
+
+                    # Quad horizontal error relative marker
+                    if horizontal_err > 0: # To far right of the marker
+                        y_vel = 0.02 # Move left
+                    else:
+                        y_vel = -0.02 # Move right
+
+                    # Quad heigt error
+                    if height_err > 0: # To low relative the marker
+                        z_vel = 0.1 # Move up
+                    else:
+                        z_vel = -0.1 # Move down
+
+                    # Quad yaw from horizontal drifting error
+                    if yaw_err > 0: # Marker in the left of the image
+                        yaw_vel = -0.12 # Turn anticlockwise
+                    else:
+                        yaw_vel = 0.12 # Turn clockwise
                     
-                    x_vel = Kp*x_err
-#                    if z_err < 0:
-#                        x_vel = 0.05
-#                    else:
-#                        x_vel = -0.05
-#                    if x_err < 0:
-#                        y_vel = 0.05
-#                    else:
-#                        y_vel = -0.05
-#                    if y_err < 0:
-#                        z_vel = -0.1
-#                    else:
-#                        z_vel = 0.1
-#                    if yaw_err < 0:
-#                        yaw_vel = -0.1
-#                    else:
-#                        yaw_vel = 0.1
+                    x_vel = x_vel
+                    y_vel = y_vel
+                    z_vel = z_vel
+                    yaw_vel = yaw_vel
+                    print((x_vel, y_vel, z_vel, yaw_vel))
                     self.ardrone_set_xyzy(x_vel, y_vel, z_vel, yaw_vel)
-                    print((x_err, y_err, z_err, yaw_err))
+                    #self.ardrone_set_xyzy(0, 0, 0, 0)
+                    #print((x_err, y_err, z_err, yaw_err))
                 else:
                     self.ardrone_set_xyzy(0, 0, 0, 0)
 
@@ -243,12 +259,6 @@ class ObjectTracker(object):
             if self.state == 6:
                 pass  # do nothing
             self.ardrone_update_rpyz(None)
-            # twist.linear.x = self.visp_pose.pose.position.x + \
-            #     self.pred_pose.pose.position.x
-            # twist.linear.y = self.visp_pose.pose.position.y + \
-            #     self.pred_pose.pose.position.y
-            # twist.linear.z = self.visp_pose.pose.position.z + \
-            #     self.pred_pose.pose.position.z
 
             self.pub.publish(twist)
             r.sleep()

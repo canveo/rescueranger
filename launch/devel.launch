@@ -20,7 +20,7 @@
         <param name="looprate" value="30" />
     </node>
   
-    <node name="drone_stateestimation" pkg="tum_ardrone" type="drone_stateestimation" launch-prefix="xterm -e" respawn="true" respawn_delay="1"/>
+    <node name="drone_stateestimation" pkg="tum_ardrone" type="drone_stateestimation" launch-prefix="xterm -e" respawn="true"/>
   
     <node ns="ardrone" pkg="image_proc" type="image_proc" name="camera_image_proc" respawn="true" respawn_delay="1"/>
      
@@ -35,8 +35,12 @@
     </node>
 
     <!-- % rosrun image_view image_view image:=/camera/image_raw -->
+    <!--
     <node pkg="image_view" type="image_view" name="ardrone_front_viewer" args="image:=/ardrone/image_raw" launch-prefix="xterm -e" respawn="true" respawn_delay="5"/>
+    -->
     
     <node pkg="image_view" type="image_view" name="ardrone_front_viewer_rectified" args="image:=/ardrone/image_rect" launch-prefix="xterm -e" respawn="true" respawn_delay="5"/>
+    
+    <node pkg="keyboard" type="keyboard" name="keyboard_listener" launch-prefix="xterm -e" respawn="true"/>
 
 </launch>
