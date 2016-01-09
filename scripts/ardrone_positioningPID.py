@@ -31,24 +31,24 @@ class ObjectTracker(object):
         self.state = 0
         self.ardrone_state = -1
         
-        self.Px = 0.05
+        self.Px = 0.07
         self.Ix = 0
         self.Dx = 0.025
         self.saturation_x = 0.12
         
-        self.Py = 0.05
+        self.Py = 0.15
         self.Iy = 0
         self.Dy = 0.025
         self.saturation_y = 0.1
         
-        self.Pz = 0.5
+        self.Pz = 1.1
         self.Iz = 0.01
         self.Dz = 0
         self.saturation_z = 0.4
         
-        self.Pyaw = 0.6
+        self.Pyaw = 1
         self.Iyaw = 0.05
-        self.Dyaw = 0.3
+        self.Dyaw = 0.2
         self.saturation_yaw = 0.4
         
         self.pidx = PID.PID(self.Px, self.Ix, self.Dx, self.saturation_x)
@@ -56,11 +56,11 @@ class ObjectTracker(object):
         self.pidz = PID.PID(self.Pz, self.Iz, self.Dz, self.saturation_z)
         self.pidyaw = PID.PID(self.Pyaw, self.Iyaw, self.Dyaw, self.saturation_yaw)
                 
-        self.smplTime = 1/60
+        self.smplTime = 1/200
         
         self.height_goal = 0.0
         self.horizontal_goal = 0.0
-        self.distance_goal = 1.4
+        self.distance_goal = 4.5
         self.yaw_goal = 0.0
         
         self.pidx.setReference(self.distance_goal)
@@ -74,7 +74,7 @@ class ObjectTracker(object):
         
         self.estimated_marker = None
         self.marker_seen = False
-        self.marker_timeout_threshold = 0.2
+        self.marker_timeout_threshold = 1
         self.marker_last_seen = 0 - self.marker_timeout_threshold
         
         print('Rescueranger initilizing')
@@ -191,15 +191,23 @@ class ObjectTracker(object):
     def run(self):
         twist = Twist()
         # Publish the estimated waypoint on object_tracker/pref_pos
-        r = rospy.Rate(100)  # in Hz
+        r = rospy.Rate(300)  # in Hz
         # 0=wait, 1=takeoff, 2=hover over marker,  3= search for marker, 4=
         # aproach marker, 5= land, 6= do nothing
         while not rospy.is_shutdown():
+            sys.stderr.write("\x1b[2J\x1b[H")
             dt = time.time() - self.marker_last_seen
             if dt < self.marker_timeout_threshold:
+                if self.marker_seen == False:
+                    self.pidx.clear()
+                    self.pidy.clear()
+                    self.pidz.clear()
+                    self.pidyaw.clear()
                 self.marker_seen = True
+                print("Marker Seen")
             else:
                 self.marker_seen = False
+                print("Marker Lost") 
             if self.state == 0:
                 # wait for start command
                 pass
@@ -239,7 +247,7 @@ class ObjectTracker(object):
                     current_height = marker_z
                     #current_horizontal = marker_yaw
                     #current_horizontal = marker_y + marker_yaw
-                    current_horizontal = marker_yaw - marker_y
+                    current_horizontal = 3*marker_yaw - marker_y
                     real_distance = (marker_z**2 + marker_y**2 + marker_x**2)**0.5
                     current_distance = marker_x
                     current_yaw = math.sin(-marker_y/real_distance)
@@ -260,8 +268,9 @@ class ObjectTracker(object):
                     #z_vel = 0
                     #yaw_vel = 0
                     
-                    sys.stderr.write("\x1b[2J\x1b[H")
+                    
                     print((x_vel, y_vel, z_vel, yaw_vel, current_yaw))
+                    print((self.pidx.last_error, self.pidy.last_error, self.pidz.last_error, self.pidyaw.last_error))
                     self.ardrone_set_xyzy(x_vel, y_vel, z_vel, yaw_vel)
                     #self.ardrone_set_xyzy(0, 0, 0, 0)
                 else:

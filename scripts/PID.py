@@ -12,7 +12,7 @@ class PID(object):
         self.Kd = D
         
         self.DTerm = 0
-        self.lowpass_D_constant = 0.9
+        self.lowpass_D_constant = 0.97
         
         self.saturation = saturation
 
@@ -23,7 +23,7 @@ class PID(object):
         self.clear()
 
     def clear(self):
-        self.reference = 0.0
+        #self.reference = 0.0
 
         self.PTerm = 0.0
         self.ITerm = 0.0
