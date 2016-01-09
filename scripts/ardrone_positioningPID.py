@@ -31,30 +31,33 @@ class ObjectTracker(object):
         self.state = 0
         self.ardrone_state = -1
         
-        self.Px = 0.07
+        self.Px = 0.065
         self.Ix = 0
-        self.Dx = 0.025
-        self.saturation_x = 0.12
+        self.Dx = 0.07
+        self.saturation_x = 0.35
         
-        self.Py = 0.15
+        self.Py = 0.1
         self.Iy = 0
-        self.Dy = 0.025
-        self.saturation_y = 0.1
+        self.Dy = 0.035
+        self.saturation_y = 0.3
         
         self.Pz = 1.1
         self.Iz = 0.01
         self.Dz = 0
         self.saturation_z = 0.4
         
-        self.Pyaw = 1
-        self.Iyaw = 0.05
+        self.Pyaw = 0.75
+        self.Iyaw = 0.065
         self.Dyaw = 0.2
-        self.saturation_yaw = 0.4
+        self.saturation_yaw = 0.6
+        
         
         self.pidx = PID.PID(self.Px, self.Ix, self.Dx, self.saturation_x)
         self.pidy = PID.PID(self.Py, self.Iy, self.Dy, self.saturation_y)
         self.pidz = PID.PID(self.Pz, self.Iz, self.Dz, self.saturation_z)
         self.pidyaw = PID.PID(self.Pyaw, self.Iyaw, self.Dyaw, self.saturation_yaw)
+        
+        self.pidyaw.windup_guard = 1
                 
         self.smplTime = 1/200
         
@@ -74,7 +77,7 @@ class ObjectTracker(object):
         
         self.estimated_marker = None
         self.marker_seen = False
-        self.marker_timeout_threshold = 1
+        self.marker_timeout_threshold = 0.5
         self.marker_last_seen = 0 - self.marker_timeout_threshold
         
         print('Rescueranger initilizing')
@@ -195,7 +198,7 @@ class ObjectTracker(object):
         # 0=wait, 1=takeoff, 2=hover over marker,  3= search for marker, 4=
         # aproach marker, 5= land, 6= do nothing
         while not rospy.is_shutdown():
-            sys.stderr.write("\x1b[2J\x1b[H")
+            #sys.stderr.write("\x1b[2J\x1b[H")
             dt = time.time() - self.marker_last_seen
             if dt < self.marker_timeout_threshold:
                 if self.marker_seen == False:
@@ -204,10 +207,10 @@ class ObjectTracker(object):
                     self.pidz.clear()
                     self.pidyaw.clear()
                 self.marker_seen = True
-                print("Marker Seen")
+                #print("Marker Seen")
             else:
                 self.marker_seen = False
-                print("Marker Lost") 
+                #print("Marker Lost") 
             if self.state == 0:
                 # wait for start command
                 pass
@@ -244,13 +247,17 @@ class ObjectTracker(object):
                     yaw_err = self.yaw_goal - marker_y
                     
                     # 
-                    current_height = marker_z
+                    
                     #current_horizontal = marker_yaw
                     #current_horizontal = marker_y + marker_yaw
-                    current_horizontal = 3*marker_yaw - marker_y
-                    real_distance = (marker_z**2 + marker_y**2 + marker_x**2)**0.5
-                    current_distance = marker_x
-                    current_yaw = math.sin(-marker_y/real_distance)
+                    current_horizontal = 3.5*marker_yaw - 0.8*marker_y
+                    real_distance = (marker_x**2 + marker_y**2 + marker_z**2)**0.5
+                    #current_distance = marker_x
+                    current_distance = real_distance 
+                    current_yaw = math.sin(-marker_y/real_distance) - 0.15*marker_yaw
+                    #current_yaw =  - 0.3*marker_yaw
+                    #current_height = marker_z
+                    current_height =  marker_z + 0.04*real_distance
                     
                     # Update the PIDs
                     self.pidx.updatePID(current_distance)
@@ -269,8 +276,9 @@ class ObjectTracker(object):
                     #yaw_vel = 0
                     
                     
-                    print((x_vel, y_vel, z_vel, yaw_vel, current_yaw))
-                    print((self.pidx.last_error, self.pidy.last_error, self.pidz.last_error, self.pidyaw.last_error))
+                    #print((x_vel, y_vel, z_vel, yaw_vel, current_yaw))
+                    print((round(100*yaw_vel), round(100*self.pidyaw.ITerm)))
+                    #print((self.pidx.last_error, self.pidy.last_error, self.pidz.last_error, self.pidyaw.last_error))
                     self.ardrone_set_xyzy(x_vel, y_vel, z_vel, yaw_vel)
                     #self.ardrone_set_xyzy(0, 0, 0, 0)
                 else:

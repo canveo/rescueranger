@@ -13,6 +13,7 @@ class PID(object):
         
         self.DTerm = 0
         self.lowpass_D_constant = 0.97
+        self.windup_guard = 10.0
         
         self.saturation = saturation
 
@@ -32,7 +33,7 @@ class PID(object):
 
         # Windup Guard
         self.int_error = 0.0
-        self.windup_guard = 10.0
+       
 
         self.output = 0.0
 
