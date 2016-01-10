@@ -6,7 +6,6 @@ import time
 class PID(object):
 
     def __init__(self, P=0.2, I=0.0, D=0.0, saturation=0.05):
-
         self.Kp = P
         self.Ki = I
         self.Kd = D
@@ -24,8 +23,6 @@ class PID(object):
         self.clear()
 
     def clear(self):
-        #self.reference = 0.0
-
         self.PTerm = 0.0
         self.ITerm = 0.0
         self.DTerm = 0.0
@@ -34,7 +31,6 @@ class PID(object):
         # Windup Guard
         self.int_error = 0.0
        
-
         self.output = 0.0
 
     def updatePID(self, feedback_value):

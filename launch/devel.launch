@@ -20,16 +20,16 @@
         <param name="looprate" value="30" />
     </node>
   
-    <!—-
+    <!--
     <node name="drone_stateestimation" pkg="tum_ardrone" type="drone_stateestimation" launch-prefix="xterm -e" respawn="true"/>
-    —->
+    -->
     
     <node ns="ardrone" pkg="image_proc" type="image_proc" name="camera_image_proc" respawn="true" respawn_delay="1"/>
      
     <node pkg="viewpoint_estimation" type="viewpoint_estimation" name="viewpoint_estimation" output="screen" launch-prefix="xterm -e" respawn="true">
         <remap from="/image_raw" to="/ardrone/image_raw" />
         <rosparam>
-            calibration_file: "/home/viki/catkin_ws/src/rescueranger/data/ardrone_front.txt"      
+            calibration_file: "/home/tomas/Skola/catkin_ws/src/rescueranger/data/ardrone_front.txt"      
         </rosparam>
         <rosparam>
             marker_size: 0.7
