@@ -5,6 +5,7 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
+        - /Image1
       Splitter Ratio: 0.5
     Tree Height: 171
   - Class: rviz/Selection
@@ -54,56 +55,6 @@ Visualization Manager:
         All Enabled: true
         camera:
           Value: true
-        marker_103:
-          Value: true
-        marker_151:
-          Value: true
-        marker_188:
-          Value: true
-        marker_199:
-          Value: true
-        marker_210:
-          Value: true
-        marker_261:
-          Value: true
-        marker_287:
-          Value: true
-        marker_335:
-          Value: true
-        marker_416:
-          Value: true
-        marker_450:
-          Value: true
-        marker_564:
-          Value: true
-        marker_569:
-          Value: true
-        marker_575:
-          Value: true
-        marker_582:
-          Value: true
-        marker_587:
-          Value: true
-        marker_590:
-          Value: true
-        marker_625:
-          Value: true
-        marker_733:
-          Value: true
-        marker_805:
-          Value: true
-        marker_81:
-          Value: true
-        marker_838:
-          Value: true
-        marker_841:
-          Value: true
-        marker_848:
-          Value: true
-        marker_911:
-          Value: true
-        marker_928:
-          Value: true
         world:
           Value: true
       Marker Scale: 1
@@ -114,56 +65,6 @@ Visualization Manager:
       Tree:
         world:
           camera:
-            {}
-          marker_103:
-            {}
-          marker_151:
-            {}
-          marker_188:
-            {}
-          marker_199:
-            {}
-          marker_210:
-            {}
-          marker_261:
-            {}
-          marker_287:
-            {}
-          marker_335:
-            {}
-          marker_416:
-            {}
-          marker_450:
-            {}
-          marker_564:
-            {}
-          marker_569:
-            {}
-          marker_575:
-            {}
-          marker_582:
-            {}
-          marker_587:
-            {}
-          marker_590:
-            {}
-          marker_625:
-            {}
-          marker_733:
-            {}
-          marker_805:
-            {}
-          marker_81:
-            {}
-          marker_838:
-            {}
-          marker_841:
-            {}
-          marker_848:
-            {}
-          marker_911:
-            {}
-          marker_928:
             {}
       Update Interval: 0
       Value: true
@@ -177,7 +78,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /camera/image_rect
+      Image Topic: /camera/image_raw
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -245,5 +146,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1248
-  X: 43
+  X: 41
   Y: 10
