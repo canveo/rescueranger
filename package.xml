@@ -50,7 +50,7 @@
   <run_depend>ardrone_autonomy</run_depend>
   <run_depend>viewpoint_estimation</run_depend> <!-- Marker_pose_detection -->
   <run_depend>keyboard</run_depend>
-  <run_depend>aruco</run_depend>
+  <!-- <run_depend>aruco</run_depend> This is actually required, but as a dependancy for viewpoint_estimation --> 
   <run_depend>image_view</run_depend>
   <buildtool_depend>catkin</buildtool_depend>
 
