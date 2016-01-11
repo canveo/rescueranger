@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>rescueranger</name>
-  <version>0.0.0</version>
+  <version>0.5.6</version>
   <description>The rescueranger package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag --> 
@@ -9,7 +9,7 @@
   <!-- <maintainer email="jane.doe@example.com">Jane Doe</maintainer> -->
   <maintainer email="gsnorri@student.chalmers.se">Gunnar</maintainer>
   <maintainer email="mikael@todo.todo">Mikael</maintainer>
-  <maintainer email="tomas@todo.todo">Tomas</maintainer>
+  <maintainer email="tomasni@student.chalmers.se">Tomas</maintainer>
   <maintainer email="bjorn@todo.todo">Björn</maintainer>
 
 
@@ -32,13 +32,26 @@
   <!-- Dependencies can be catkin packages or system dependencies -->
   <!-- Examples: -->
   <!-- Use build_depend for packages you need at compile time: -->
-  <!--   <build_depend>message_generation</build_depend> -->
+  <!--  <build_depend>message_generation</build_depend> -->
   <!-- Use buildtool_depend for build tool packages: -->
   <!--   <buildtool_depend>catkin</buildtool_depend> -->
   <!-- Use run_depend for packages you need at runtime: -->
-  <!--   <run_depend>message_runtime</run_depend> -->
+  <!-- <run_depend>message_runtime</run_depend> -->
   <!-- Use test_depend for packages you need only for testing: -->
   <!--   <test_depend>gtest</test_depend> -->
+  <!-- <buildtool_depend>catkin</buildtool_depend> -->
+  
+  <build_depend>message_generation</build_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <run_depend>message_runtime</run_depend>
+  <run_depend>rospy</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>ardrone_autonomy</run_depend>
+  <run_depend>viewpoint_estimation</run_depend> <!-- Marker_pose_detection -->
+  <run_depend>keyboard</run_depend>
+  <!-- <run_depend>aruco</run_depend> This is actually required, but as a dependancy for viewpoint_estimation --> 
+  <run_depend>image_view</run_depend>
   <buildtool_depend>catkin</buildtool_depend>
 
 

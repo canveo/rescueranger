@@ -13,7 +13,7 @@ class KeyboardController(object):
             'land': 108,  # Land
             'emergency': 101,  # Emergency
         }
-        rospy.Subscriber('/keyboard/keydown', Key, self.callback_keyboard)
+        rospy.Subscriber('/keyboard_listener/keydown', Key, self.callback_keyboard)
 
     def callback_keyboard(self, data):
         self.key = data.code

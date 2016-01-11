@@ -1,0 +1,47 @@
+<!-- -*- xml -*-
+    Comments here:
+    
+    <node name="usb_cam" pkg="usb_cam" type="usb_cam_node" output="screen">
+        <param name="video_device" value="/dev/video0" />
+        <param name="image_width" value="640" />
+        <param name="image_height" value="480" />
+        <param name="pixel_format" value="yuyv" />
+        <param name="camera_frame_id" value="usb_cam" />
+        <param name="io_method" value="mmap"/>
+    </node>
+  -->
+<launch>
+    <arg name="droneip" default="192.168.1.1" />
+    
+    <node name="ardrone_driver" pkg="ardrone_autonomy" type="ardrone_driver" output="screen" args="-ip $(arg droneip)" launch-prefix="xterm -e" required="true">
+        <param name="navdata_demo" value="False" />
+        <param name="realtime_navdata" value="True" />
+        <param name="realtime_video" value="True" />
+        <param name="looprate" value="30" />
+    </node>
+  
+    <!--
+    <node name="drone_stateestimation" pkg="tum_ardrone" type="drone_stateestimation" launch-prefix="xterm -e" respawn="true"/>
+    -->
+    
+     
+    <node pkg="viewpoint_estimation" type="viewpoint_estimation" name="viewpoint_estimation" output="screen" launch-prefix="xterm -e" respawn="true">
+        <remap from="/image_raw" to="/ardrone/image_raw" />
+        <rosparam param="calibration_file" subst_value="True">
+                $(find rescueranger)/data/ardrone_front.txt
+        </rosparam>
+        <rosparam>
+            marker_size: 0.7
+        </rosparam>
+    </node>
+
+    <!-- % rosrun image_view image_view image:=/camera/image_raw -->
+    <!--
+    <node pkg="image_view" type="image_view" name="ardrone_front_viewer" args="image:=/ardrone/image_raw" launch-prefix="xterm -e" respawn="true" respawn_delay="5"/>
+    -->
+    
+    <node pkg="image_view" type="image_view" name="ardrone_front_viewer" args="image:=/ardrone/image_raw" respawn="true" respawn_delay="5"/>
+    
+    <node pkg="keyboard" type="keyboard" name="keyboard_listener" respawn="true"/>
+
+</launch>
