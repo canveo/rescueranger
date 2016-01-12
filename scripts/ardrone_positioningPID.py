@@ -31,6 +31,7 @@ class ObjectTracker(object):
     def __init__(self):
         self.state = 0
         self.ardrone_state = -1
+        self.ardrone_rotY = 0 #Forward/backward tilt in degrees (rotation about the Y axis)
         
         self.Px = 0.065
         self.Ix = 0
@@ -67,10 +68,6 @@ class ObjectTracker(object):
         self.distance_goal = 4.5
         self.yaw_goal = 0.0
         
-        self.pidx.setReference(self.distance_goal)
-        self.pidy.setReference(self.horizontal_goal)
-        self.pidz.setReference(self.height_goal)
-        self.pidyaw.setReference(self.yaw_goal)
         self.pidx.setSampleTime(self.smplTime)
         self.pidy.setSampleTime(self.smplTime)
         self.pidz.setSampleTime(self.smplTime)
@@ -153,11 +150,14 @@ class ObjectTracker(object):
         rospy.on_shutdown(self.ardrone_send_land)
 
     def callback_ardrone_navdata(self, navdata):
-        # Although there is a lot of data in this packet, we're only interested
-        # in the state at the moment
+        
+		#get state
         if self.ardrone_state != navdata.state:
             print("Recieved droneState: %d" % navdata.state)
             self.ardrone_state = navdata.state
+
+    	#get tilt
+    	self.ardrone_rotY = navdata.rotY*math.pi/180 #to radians
 
     def ardrone_send_takeoff(self):
         # Send a takeoff message to the ardrone driver
@@ -283,23 +283,45 @@ class ObjectTracker(object):
                     self.pub_info_error.publish(self.info_error)
                     
                     # Calculate current marker position
-                    current_horizontal = 3.5*marker_yaw - 0.8*marker_y
                     real_distance = (marker_x**2 + marker_y**2 + marker_z**2)**0.5
-                    current_distance = real_distance 
+                    current_y = 3.5*marker_yaw - 0.8*marker_y
+                    current_x = real_distance 
                     current_yaw = math.sin(-marker_y/real_distance) - 0.65*marker_yaw/real_distance
-                    current_height =  marker_z + 0.04*real_distance
+                    current_z =  marker_z
+                    
                     # Publish current
-                    self.info_marker.x = current_distance
-                    self.info_marker.y = current_horizontal
-                    self.info_marker.z = current_height
+                    self.info_marker.x = current_x
+                    self.info_marker.y = current_y
+                    self.info_marker.z = current_z
                     self.info_marker.yaw = current_yaw
                     self.info_marker.time = time.time()
                     self.pub_info_marker.publish(self.info_marker)
+
+                    #calculate references
+                    pidx_reference = self.distance_goal
+                    pidy_reference = self.horizontal_goal
+
+                    camera_fov_vertical = 0.70 # 40 degrees in radians
+                    marker_size = 0.7
+                    marker_fov_vertical = marker_size/real_distance #approximate 
+                    max_allowed_vertical_marker_angle = (camera_fov_vertical - marker_fov_vertical)/2
+                    if abs(self.ardrone_rotY) < max_allowed_vertical_marker_angle
+						reference_vertical_marker_angle = -self.ardrone_rotY # negative sign because if we tilt up, marker should be down and vice versa
+					else
+						reference_vertical_marker_angle = math.copysign(max_allowed_vertical_marker_angle, -self.ardrone_rotY)
+					pidz_reference = self.height_goal + real_distance*math.sin(reference_vertical_marker_angle)
+                    pidyaw_reference = self.yaw_goal
                     
+                    #update reference
+                    self.pidx.setReference(pidx_reference)
+                    self.pidy.setReference(pidy_reference)
+                    self.pidz.setReference(pidz_reference)
+                    self.pidyaw.setReference(pidyaw_reference)
+
                     # Update the PIDs
-                    self.pidx.updatePID(current_distance)
-                    self.pidy.updatePID(current_horizontal)
-                    self.pidz.updatePID(current_height)
+                    self.pidx.updatePID(current_x)
+                    self.pidy.updatePID(current_y)
+                    self.pidz.updatePID(current_z)
                     self.pidyaw.updatePID(current_yaw)
                     
                     x_vel = -self.pidx.output
