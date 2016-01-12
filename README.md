@@ -1,7 +1,27 @@
 # rescueranger
-Life raft quad copter design project
+Life raft quad copter design project at Chalmers Technological University, Sweden
+
+Created by 4 MPSYS master students 2015, Björn, Tomas, Mikael and Gunnar.
+
+The AR Parrot 2.0 drone currently tracks and follows a ArUco marker at a set reference position relative the marker.
+
+## Object Tracker
+To run the object tracker
+Get the needed external packages listed in package.xml (or below)
+
+Then run 
+```bash
+roslaunch rescueranger devel.launch
+```
+and run the following in a new bash window
+```bash 
+rosrun rescueranger ardrone_positioningPID.py
+```
+ to run the tracker.
 
 ## Dependencies
+A list of seperate packages that are needed to run the rescueranger project.
+ROS indigo is what the package was run and tested on, and atleast a version of ROS is required.
 
 ### Ardrone Autonomy (ROS)
 [ardrone_autonomy](https://github.com/tum-vision/ardrone_autonomy)
@@ -16,10 +36,12 @@ Used by marker_pose_detection, even though it is not listed as a dependancy for 
 Used to feed a image stream to a window on a computer.
 
 ### Keyboard (ROS)
+[keyboard](https://github.com/lrse/ros-keyboard)
+To intercept and interpret keyboard presses.
+
 ```bash
 sudo apt-get install ros-indigo-keyboard
 ```
-To intercept and interpret keyboard presses.
 
 ### Pal Vision Segmentation (ROS)
 [vision_segmentation](http://wiki.ros.org/pal_vision_segmentation)
@@ -32,17 +54,3 @@ Not required, but is good for testing since you can use a usb camera (such as a 
 ### Marker Pose Detection (ROS)
 [viewpoint_estimation](https://github.com/durovsky/marker_pose_detection)
 Estimates a ArUco markers position and orientation in the image stream.
-
-## Object Tracker
-To run the object tracker
-Get the needed external packages listed in package.xml (or above)
-
-Then run 
-```bash
-roslaunch rescueranger devel.launch
-```
-and run the following in a new bash window
-```bash 
-rosrun rescueranger ardrone_positioningPID.py
-```
- to run the tracker.
