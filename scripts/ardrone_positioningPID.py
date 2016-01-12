@@ -160,7 +160,7 @@ class ObjectTracker(object):
             print("Recieved droneState: %d" % navdata.state)
             self.ardrone_state = navdata.state
 
-        #todo check if rotY have correct sign from ardrone
+        #TODO check if rotY have correct sign from ardrone
     	#get tilt and velocity
     	self.ardrone_rotY = -navdata.rotY*math.pi/180 #from degrees to radians
     	self.ardrone_velY = navdata.vy/1000 #from mm/s to m/s
@@ -188,7 +188,7 @@ class ObjectTracker(object):
         self.command.linear.x = x
         self.command.linear.y = y
         self.command.linear.z = z
-        self.command.angular.z = -yaw*180/math.pi #convert to degrees from radians 
+        self.command.angular.z = -yaw*180/math.pi ##TODO check sign 
 
     def ardrone_update_rpyz(self, event):
         # The previously set command is then sent out periodically if the drone
@@ -273,7 +273,7 @@ class ObjectTracker(object):
                     q3 = self.estimated_marker.pose.orientation.z
                     marker_frame_yaw = -math.asin(2*(q0*q2 - q3*q1))
                     real_distance = (marker_x**2 + marker_y**2 + marker_z**2)**0.5
-                    angle_to_marker_in_ardrone_frame = math.asin(marker_y/real_distance)
+                    angle_to_marker_in_ardrone_frame = math.asin(marker_y/real_distance) #TODO check sign
                     #print((round(marker_roll*180/math.pi),round(marker_pitch*180/math.pi),round(marker_frame_yaw*180/math.pi)))             
                     
                     ## Calculate error       
@@ -292,7 +292,7 @@ class ObjectTracker(object):
                     #introduce a new coordinate frame(marker_prim, attached to the marker but rotated with the drone. in this coordinate frame, we want to find the position of the drone relative the marker
                     drone_pos_relative_marker_prim_x = -marker_x
                     drone_pos_relative_marker_prim_y = - marker_y 
-                    drone_pos_relative_marker_prim_z =  -marker_z
+                    drone_pos_relative_marker_prim_z = -marker_z
                     
                     ## Publish current
                     #self.info_marker.x = drone_pos_relative_marker_prim_x
@@ -303,8 +303,8 @@ class ObjectTracker(object):
                     #self.pub_info_marker.publish(self.info_marker)
 
                     #calculate reference point in quadcopter coordinate using 2D reverse transform
-                    pidx_reference = -self.goal_x_marker_prim_frame*math.cos(marker_frame_yaw) - self.goal_y_marker_prim_frame*math.sin(marker_frame_yaw)
-                    pidy_reference = -self.goal_x_marker_prim_frame*math.sin(marker_frame_yaw) - self.goal_y_marker_prim_frame*math.cos(marker_frame_yaw)
+                    pidx_reference = self.goal_x_marker_prim_frame*math.cos(marker_frame_yaw) + self.goal_y_marker_prim_frame*math.sin(marker_frame_yaw)
+                    pidy_reference = self.goal_x_marker_prim_frame*math.sin(marker_frame_yaw) + self.goal_y_marker_prim_frame*math.cos(marker_frame_yaw)
 
                     camera_fov_vertical = 0.70 # 40 degrees in radians
                     marker_size = 0.7
@@ -334,13 +334,13 @@ class ObjectTracker(object):
                     z_vel = self.pidz.output
                     yaw_vel = self.pidyaw.output + (self.ardrone_velY*math.cos( angle_to_marker_in_ardrone_frame) + self.ardrone_velX*math.sin( angle_to_marker_in_ardrone_frame) )/real_distance
                     
-                    # Publish velocities
-                    self.info_vel.x = x_vel
-                    self.info_vel.y = y_vel
-                    self.info_vel.z = z_vel
-                    self.info_vel.yaw = yaw_vel
-                    self.info_vel.time = time.time()                   
-                    self.pub_info_vel.publish(self.info_vel)
+                    ## Publish velocities
+                    #self.info_vel.x = x_vel
+                    #self.info_vel.y = y_vel
+                    #self.info_vel.z = z_vel
+                    #self.info_vel.yaw = yaw_vel
+                    #self.info_vel.time = time.time()                   
+                    #self.pub_info_vel.publish(self.info_vel)
                     #x_vel = 0
                     #y_vel = 0
                     #z_vel = 0
