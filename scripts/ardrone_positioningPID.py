@@ -286,7 +286,7 @@ class ObjectTracker(object):
                     current_horizontal = 3.5*marker_yaw - 0.8*marker_y
                     real_distance = (marker_x**2 + marker_y**2 + marker_z**2)**0.5
                     current_distance = real_distance 
-                    current_yaw = math.sin(-marker_y/real_distance) - 0.65*marker_yaw/real_distance
+                    current_yaw = math.asin(-marker_y/real_distance) - 0.65*marker_yaw/real_distance
                     current_height =  marker_z + 0.04*real_distance
                     # Publish current
                     self.info_marker.x = current_distance
