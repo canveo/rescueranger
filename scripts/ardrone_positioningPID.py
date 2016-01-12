@@ -32,6 +32,7 @@ class ObjectTracker(object):
         self.state = 0
         self.ardrone_state = -1
         self.ardrone_rotY = 0 #Forward/backward tilt in degrees (rotation about the Y axis)
+        self.ardrone_velY = 0 #current velocity in left direction
         
         self.Px = 0.065
         self.Ix = 0
@@ -63,10 +64,12 @@ class ObjectTracker(object):
                 
         self.smplTime = 1/200
         
-        self.height_goal = 0.0
-        self.horizontal_goal = 0.0
-        self.distance_goal = 4.5
-        self.yaw_goal = 0.0
+        #these are in the markers frame, which has same orientation as the ardrone when it is straight in front of it
+        #which means X points inwards in the marker, and the Y points left. Z points up. yaw is positive clockwise  
+        self.goal_z_marker_frame = 0.0
+        self.goal_y_marker_frame = 0.0
+        self.goal_x_marker_frame = -4.5
+        self.goal_yaw_marker_frame = 0.0
         
         self.pidx.setSampleTime(self.smplTime)
         self.pidy.setSampleTime(self.smplTime)
@@ -75,7 +78,7 @@ class ObjectTracker(object):
         
         self.estimated_marker = None
         self.marker_seen = False
-        self.marker_timeout_threshold = 0.5
+        self.marker_timeout_threshold = 0.2 # equivalent of not finding any marker in 4 consecutive images
         self.marker_last_seen = 0 - self.marker_timeout_threshold
         
         print('Rescueranger initilizing')
@@ -157,7 +160,8 @@ class ObjectTracker(object):
             self.ardrone_state = navdata.state
 
     	#get tilt
-    	self.ardrone_rotY = navdata.rotY*math.pi/180 #to radians
+    	self.ardrone_rotY = navdata.rotY*math.pi/180 #from degrees to radians
+    	self.ardrone_velY = navdata.vy/1000 #from mm/s to m/s
 
     def ardrone_send_takeoff(self):
         # Send a takeoff message to the ardrone driver
@@ -259,7 +263,7 @@ class ObjectTracker(object):
                     # Yaw: Positive clockwise drone frame
                     marker_z = self.estimated_marker.pose.position.x
                     marker_y = -self.estimated_marker.pose.position.y
-                    marker_x = self.estimated_marker.pose.position.z
+                    marker_x = -self.estimated_marker.pose.position.z
                     q0 = self.estimated_marker.pose.orientation.w
                     q1 = self.estimated_marker.pose.orientation.x
                     q2 = self.estimated_marker.pose.orientation.y
@@ -267,13 +271,14 @@ class ObjectTracker(object):
                     marker_roll = math.atan2(2*(q0*q3 + q1*q2), 1 - 2*(q2**2 + q3**2))
                     marker_pitch = math.atan2(2*(q0*q1 + q2*q3), 1 - 2*(q1**2 + q2**2))
                     marker_yaw = math.asin(2*(q0*q2 - q3*q1))
+                    real_distance = (marker_x**2 + marker_y**2 + marker_z**2)**0.5
                     #print((round(marker_roll*180/math.pi),round(marker_pitch*180/math.pi),round(marker_yaw*180/math.pi)))             
                     
                     # Calculate error       
-                    height_err = self.height_goal - marker_z
-                    horizontal_err = self.horizontal_goal - marker_y
-                    distance_err = self.distance_goal - (marker_z**2 + marker_y**2 + marker_x**2)**0.5
-                    yaw_err = self.yaw_goal - marker_yaw
+                    height_err = self.goal_z_marker_frame - marker_z
+                    horizontal_err = self.goal_y_marker_frame - marker_y
+                    distance_err = self.goal_x_marker_frame - (marker_z**2 + marker_y**2 + marker_x**2)**0.5
+                    yaw_err = self.goal_yaw_marker_frame - marker_yaw
                     # Publish errors
                     self.info_error.x = distance_err
                     self.info_error.y = horizontal_err
@@ -283,10 +288,9 @@ class ObjectTracker(object):
                     self.pub_info_error.publish(self.info_error)
                     
                     # Calculate current marker position
-                    real_distance = (marker_x**2 + marker_y**2 + marker_z**2)**0.5
-                    current_y = 3.5*marker_yaw - 0.8*marker_y
-                    current_x = real_distance 
-                    current_yaw = math.sin(-marker_y/real_distance) - 0.65*marker_yaw/real_distance
+                    current_y = - marker_y
+                    current_x = -marker_x 
+                    current_yaw = math.asin(-marker_y/real_distance) - self.ardrone_velY/real_distance #todo check if it's correct to compare angle and angular velocity like this
                     current_z =  marker_z
                     
                     # Publish current
@@ -297,9 +301,9 @@ class ObjectTracker(object):
                     self.info_marker.time = time.time()
                     self.pub_info_marker.publish(self.info_marker)
 
-                    #calculate references
-                    pidx_reference = self.distance_goal
-                    pidy_reference = self.horizontal_goal
+                    #calculate reference point in quadcopter coordinate using 2D reverse transform
+                    pidx_reference = -self.goal_x_marker_frame*math.cos(marker_yaw) - self.goal_y_marker_frame*math.sin(marker_yaw)
+                    pidy_reference = -self.goal_x_marker_frame*math.sin(marker_yaw) - self.goal_y_marker_frame*math.cos(marker_yaw)
 
                     camera_fov_vertical = 0.70 # 40 degrees in radians
                     marker_size = 0.7
@@ -309,8 +313,8 @@ class ObjectTracker(object):
 						reference_vertical_marker_angle = -self.ardrone_rotY # negative sign because if we tilt up, marker should be down and vice versa
 					else
 						reference_vertical_marker_angle = math.copysign(max_allowed_vertical_marker_angle, -self.ardrone_rotY)
-					pidz_reference = self.height_goal + real_distance*math.sin(reference_vertical_marker_angle)
-                    pidyaw_reference = self.yaw_goal
+					pidz_reference = self.goal_z_marker_frame + real_distance*math.sin(reference_vertical_marker_angle)
+                    pidyaw_reference = self.goal_yaw_marker_frame
                     
                     #update reference
                     self.pidx.setReference(pidx_reference)
