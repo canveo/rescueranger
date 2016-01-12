@@ -10,14 +10,14 @@ sudo apt-get install ros-indigo-keyboard
 
 ## Object Tracker
 To run the object tracker
-First get VISP autotracker: http://wiki.ros.org/vision_visp
-Then get usb_cam: https://github.com/bosch-ros-pkg/usb_cam
+Get the needed external packages listed in package.xml
+
 Then run 
 ```bash
-roslaunch visp_auto_tracker tracklive_usb.launch
+roslaunch rescueranger devel.launch
 ```
-run
+and run the following in a new bash window
 ```bash 
-rosrun rescueranger object_tracker.py
+rosrun rescueranger ardrone_positioningPID.py
 ```
  to run the tracker.
