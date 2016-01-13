@@ -6,7 +6,7 @@ import time
 import sys
 from geometry_msgs.msg import Twist
 from tf2_msgs.msg import TFMessage
-from std_msgs.msg import Empty          # for land/takeoff/emergency
+from std_msgs.msg import Empty            # for land/takeoff/emergency
 from std_msgs.msg import Int8
 from ardrone_autonomy.msg import Navdata  # for receiving navdata feedback
 from keyboard_controller import KeyboardController
@@ -164,7 +164,6 @@ class ObjectTracker(object):
             print("Recieved droneState: %d" % navdata.state)
             self.ardrone_state = navdata.state
 
-        
         #get tilt and velocity
         self.ardrone_rotY = navdata.rotY*math.pi/180 #from degrees to radians, positive anti-clockwise (tested)
         self.ardrone_velY = navdata.vy/1000 #from mm/s to m/s, positive left (tested)
@@ -318,6 +317,7 @@ class ObjectTracker(object):
                     marker_size = 0.7
                     marker_fov_vertical = marker_size/real_distance #approximate 
                     max_allowed_vertical_marker_angle = (camera_fov_vertical - marker_fov_vertical)/2
+
                     if abs(marker_frame_pitch) < max_allowed_vertical_marker_angle:
                         reference_vertical_marker_angle = marker_frame_pitch # negative sign because if we tilt up, marker should be down and vice versa
                     else:
