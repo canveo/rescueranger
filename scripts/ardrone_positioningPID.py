@@ -6,12 +6,12 @@ import time
 import sys
 from geometry_msgs.msg import Twist
 from tf2_msgs.msg import TFMessage
-from std_msgs.msg import Empty       	 # for land/takeoff/emergency
+from std_msgs.msg import Empty          # for land/takeoff/emergency
 from std_msgs.msg import Int8
 from ardrone_autonomy.msg import Navdata  # for receiving navdata feedback
 from keyboard_controller import KeyboardController
 from visualization_msgs.msg import Marker # for Marker estimation from viewpoint_estimation
-from rescueranger.msg import CoordStruct
+#from rescueranger.msg import CoordStruct
 
 class DroneStatus(object):
     Emergency = 0
@@ -35,23 +35,23 @@ class ObjectTracker(object):
         self.ardrone_velY = 0 #current velocity in left direction
         self.ardrone_velX = 0 #current velocity in left direction
         
-        self.Px = 0.065
-        self.Ix = 0
-        self.Dx = 0.07
-        self.saturation_x = 0.35
+        self.Px = 0.11
+        self.Ix = 0.001
+        self.Dx = 0.1
+        self.saturation_x = 0.3
         
-        self.Py = 0.1
-        self.Iy = 0
-        self.Dy = 0.035
-        self.saturation_y = 0.3
+        self.Py = 0.13
+        self.Iy = 0.001
+        self.Dy = 0.1#0.035
+        self.saturation_y = 0.35
         
         self.Pz = 1.1
         self.Iz = 0.01
-        self.Dz = 0
-        self.saturation_z = 0.4
+        self.Dz = 0#0.05
+        self.saturation_z = 0.9
         
-        self.Pyaw = 0.75
-        self.Iyaw = 0.065
+        self.Pyaw = 1#0.75
+        self.Iyaw = 0.2
         self.Dyaw = 0.2
         self.saturation_yaw = 0.6
         
@@ -61,9 +61,12 @@ class ObjectTracker(object):
         self.pidz = PID.PID(self.Pz, self.Iz, self.Dz, self.saturation_z)
         self.pidyaw = PID.PID(self.Pyaw, self.Iyaw, self.Dyaw, self.saturation_yaw)
         
-        self.pidyaw.windup_guard = 1
+        self.pidx.windup_guard = 0.1
+        self.pidy.windup_guard = 0.1
+        self.pidz.windup_guard = 0.1
+        self.pidyaw.windup_guard = 2 #(tuned)
                 
-        self.smplTime = 1/200
+        self.smplTime = 1/300
         
         #these are in the markers frame, which has same orientation as the ardrone when it is straight in front of it
         #which means X points inwards in the marker, and the Y points left. Z points up. yaw is positive clockwise  
@@ -81,6 +84,7 @@ class ObjectTracker(object):
         self.marker_seen = False
         self.marker_timeout_threshold = 0.2 # equivalent of not finding any marker in 4 consecutive images
         self.marker_last_seen = 0 - self.marker_timeout_threshold
+        self.marker_last_seen_left = False
         
         print('Rescueranger initilizing')
         
@@ -107,29 +111,29 @@ class ObjectTracker(object):
         self.command = Twist()
         self.pubCommand = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
         
-        # Publish error relative the marker
-        self.pub_info_error = rospy.Publisher(
-            '/rescueranger/MarkerError',
-            CoordStruct,
-            queue_size=10
-            )
-        self.info_error = CoordStruct()
+        ## Publish error relative the marker
+        #self.pub_info_error = rospy.Publisher(
+        #    '/rescueranger/MarkerError',
+        #    CoordStruct,
+        #    queue_size=10
+        #    )
+        #self.info_error = CoordStruct()
         
-        # Publish error relative the marker
-        self.pub_info_marker = rospy.Publisher(
-            '/rescueranger/MarkerPos',
-            CoordStruct,
-            queue_size=10
-            )
-        self.info_marker = CoordStruct()
+        ## Publish error relative the marker
+        #self.pub_info_marker = rospy.Publisher(
+        #    '/rescueranger/MarkerPos',
+        #    CoordStruct,
+        #    queue_size=10
+        #    )
+        #self.info_marker = CoordStruct()
 
-        # Publish error relative the marker
-        self.pub_info_vel = rospy.Publisher(
-            '/rescueranger/VelocityOutput',
-            CoordStruct,
-            queue_size=10
-            )
-        self.info_vel = CoordStruct()
+        ## Publish error relative the marker
+        #self.pub_info_vel = rospy.Publisher(
+        #    '/rescueranger/VelocityOutput',
+        #    CoordStruct,
+        #    queue_size=10
+        #    )
+        #self.info_vel = CoordStruct()
 
         # Keyboard Controller
         self.keyboard = KeyboardController()
@@ -155,16 +159,16 @@ class ObjectTracker(object):
 
     def callback_ardrone_navdata(self, navdata):
         
-		#get state
+        #get state
         if self.ardrone_state != navdata.state:
             print("Recieved droneState: %d" % navdata.state)
             self.ardrone_state = navdata.state
 
-        #TODO check if rotY have correct sign from ardrone
-    	#get tilt and velocity
-    	self.ardrone_rotY = -navdata.rotY*math.pi/180 #from degrees to radians
-    	self.ardrone_velY = navdata.vy/1000 #from mm/s to m/s
-    	self.ardrone_velX = navdata.vx/1000 #from mm/s to m/s
+        
+        #get tilt and velocity
+        self.ardrone_rotY = navdata.rotY*math.pi/180 #from degrees to radians, positive anti-clockwise (tested)
+        self.ardrone_velY = navdata.vy/1000 #from mm/s to m/s, positive left (tested)
+        self.ardrone_velX = navdata.vx/1000 #from mm/s to m/s, positive forward (tested)
 
     def ardrone_send_takeoff(self):
         # Send a takeoff message to the ardrone driver
@@ -188,7 +192,7 @@ class ObjectTracker(object):
         self.command.linear.x = x
         self.command.linear.y = y
         self.command.linear.z = z
-        self.command.angular.z = -yaw*180/math.pi ##TODO check sign 
+        self.command.angular.z = yaw #turn anti-clockwise(tested)
 
     def ardrone_update_rpyz(self, event):
         # The previously set command is then sent out periodically if the drone
@@ -227,9 +231,8 @@ class ObjectTracker(object):
     def run(self):
         twist = Twist()
         # Publish the estimated waypoint on object_tracker/pref_pos
-        r = rospy.Rate(300)  # in Hz
-        # 0=wait, 1=takeoff, 2=hover over marker,  3= search for marker, 4=
-        # aproach marker, 5= land, 6= do nothing
+        r = rospy.Rate(200)  # in Hz
+        # 0=wait, 1=taking off, 2=search for marker,  3= aproach marker, 4= land
         while not rospy.is_shutdown():
             #sys.stderr.write("\x1b[2J\x1b[H")
             dt = time.time() - self.marker_last_seen
@@ -239,32 +242,35 @@ class ObjectTracker(object):
                     self.pidy.clear()
                     self.pidz.clear()
                     self.pidyaw.clear()
+                    print("Marker found")
                 self.marker_seen = True
-                #print("Marker Seen")
             else:
+                if self.marker_seen == True:
+                    print("Marker lost") 
                 self.marker_seen = False
-                #print("Marker Lost") 
-            if self.state == 0:
-                # wait for start command
+            if self.state == 0: # wait for start command
                 pass
-
-            if self.state == 1:  # takeoff
+            if self.state == 1:  # taking off
                 self.ardrone_send_takeoff()
-                if (
-                    (self.ardrone_state == DroneStatus.Hovering)
-                ):
+                if self.ardrone_state == DroneStatus.Hovering:
                     self.state = 2
                     print("Hovering")
                 #self.state = 2 #TODO Remove this, this ignores actual flight!
-                
-            if self.state == 2:  # hover over marker
+            if self.state == 2:  # search for marker
+                if self.marker_last_seen_left:
+                    self.ardrone_set_xyzy(0, 0, 0, 0.5)
+                else:
+                    self.ardrone_set_xyzy(0, 0, 0, -0.5)
+                if self.marker_seen:
+                    self.state = 3
+            if self.state == 3:  # aproach marker
                 if self.marker_seen:
                     # Remap camera cooridnate frame to drone coordinate frame
                     # marker_x: Positive if marker is forward in drone frame
                     # marker_y: Positive if marker is left in drone frame
                     # marker_z: Positive if marker is up in drone frame
                     # Yaw: Positive if marker is anti- clockwise in drone frame
-                    marker_z = self.estimated_marker.pose.position.x
+                    marker_z = -self.estimated_marker.pose.position.x
                     marker_y = -self.estimated_marker.pose.position.y
                     marker_x = self.estimated_marker.pose.position.z
                     q0 = self.estimated_marker.pose.orientation.w
@@ -272,10 +278,13 @@ class ObjectTracker(object):
                     q2 = self.estimated_marker.pose.orientation.y
                     q3 = self.estimated_marker.pose.orientation.z
                     marker_frame_yaw = -math.asin(2*(q0*q2 - q3*q1))
+                    marker_frame_pitch = math.atan2(2*(q0*q1 + q2*q3),1-2*(q1**2 + q2**2))
+                    marker_frame_pitch = marker_frame_pitch%(2*math.pi) -math.pi # positive when tilting the marker upwards
                     real_distance = (marker_x**2 + marker_y**2 + marker_z**2)**0.5
-                    angle_to_marker_in_ardrone_frame = math.asin(marker_y/real_distance) #TODO check sign
+                    angle_to_marker_in_ardrone_frame = -math.asin(marker_y/real_distance)
+                    self.marker_last_seen_left = angle_to_marker_in_ardrone_frame < 0
                     #print((round(marker_roll*180/math.pi),round(marker_pitch*180/math.pi),round(marker_frame_yaw*180/math.pi)))             
-                    
+                    #print(marker_frame_pitch*180/math.pi) 
                     ## Calculate error       
                     #height_err = self.goal_z_marker_prim_frame - marker_z
                     #horizontal_err = self.goal_y_marker_prim_frame - marker_y
@@ -289,11 +298,10 @@ class ObjectTracker(object):
                     #self.info_error.time = time.time()
                     #self.pub_info_error.publish(self.info_error)
                     
-                    #introduce a new coordinate frame(marker_prim, attached to the marker but rotated with the drone. in this coordinate frame, we want to find the position of the drone relative the marker
+                    #introduce a new coordinate frame, marker_prim, attached to the marker but rotated with the drone. in this coordinate frame, we want to find the position of the drone relative the marker
                     drone_pos_relative_marker_prim_x = -marker_x
-                    drone_pos_relative_marker_prim_y = - marker_y 
+                    drone_pos_relative_marker_prim_y = -marker_y 
                     drone_pos_relative_marker_prim_z = -marker_z
-                    
                     ## Publish current
                     #self.info_marker.x = drone_pos_relative_marker_prim_x
                     #self.info_marker.y = drone_pos_relative_marker_prim_y
@@ -303,18 +311,18 @@ class ObjectTracker(object):
                     #self.pub_info_marker.publish(self.info_marker)
 
                     #calculate reference point in quadcopter coordinate using 2D reverse transform
-                    pidx_reference = self.goal_x_marker_prim_frame*math.cos(marker_frame_yaw) + self.goal_y_marker_prim_frame*math.sin(marker_frame_yaw)
-                    pidy_reference = self.goal_x_marker_prim_frame*math.sin(marker_frame_yaw) + self.goal_y_marker_prim_frame*math.cos(marker_frame_yaw)
+                    pidx_reference = self.goal_x_marker_prim_frame*math.cos(marker_frame_yaw)#TODO uncomment + self.goal_y_marker_prim_frame*math.sin(marker_frame_yaw)
+                    pidy_reference = -self.goal_x_marker_prim_frame*math.sin(marker_frame_yaw)#TODO uncomment + self.goal_y_marker_prim_frame*math.cos(marker_frame_yaw)
 
-                    camera_fov_vertical = 0.70 # 40 degrees in radians
+                    camera_fov_vertical = 0.55#0.70 # 40 degrees in radians
                     marker_size = 0.7
                     marker_fov_vertical = marker_size/real_distance #approximate 
                     max_allowed_vertical_marker_angle = (camera_fov_vertical - marker_fov_vertical)/2
-                    if abs(self.ardrone_rotY) < max_allowed_vertical_marker_angle
-						reference_vertical_marker_angle = -self.ardrone_rotY # negative sign because if we tilt up, marker should be down and vice versa
-					else
-						reference_vertical_marker_angle = math.copysign(max_allowed_vertical_marker_angle, -self.ardrone_rotY)
-					pidz_reference = self.goal_z_marker_prim_frame + real_distance*math.sin(reference_vertical_marker_angle)
+                    if abs(marker_frame_pitch) < max_allowed_vertical_marker_angle:
+                        reference_vertical_marker_angle = marker_frame_pitch # negative sign because if we tilt up, marker should be down and vice versa
+                    else:
+                        reference_vertical_marker_angle = math.copysign(max_allowed_vertical_marker_angle, marker_frame_pitch)
+                    pidz_reference = self.goal_z_marker_prim_frame + real_distance*math.sin(reference_vertical_marker_angle)
                     pidyaw_reference = self.goal_yaw_marker_frame
                     
                     #update reference
@@ -332,7 +340,9 @@ class ObjectTracker(object):
                     x_vel = self.pidx.output
                     y_vel = self.pidy.output
                     z_vel = self.pidz.output
-                    yaw_vel = self.pidyaw.output + (self.ardrone_velY*math.cos( angle_to_marker_in_ardrone_frame) + self.ardrone_velX*math.sin( angle_to_marker_in_ardrone_frame) )/real_distance
+                    yaw_vel = self.pidyaw.output -(self.ardrone_velY*math.cos( angle_to_marker_in_ardrone_frame) - self.ardrone_velX*math.sin( angle_to_marker_in_ardrone_frame) )/real_distance
+                    print(z_vel)
+                    
                     
                     ## Publish velocities
                     #self.info_vel.x = x_vel
@@ -341,12 +351,8 @@ class ObjectTracker(object):
                     #self.info_vel.yaw = yaw_vel
                     #self.info_vel.time = time.time()                   
                     #self.pub_info_vel.publish(self.info_vel)
-                    #x_vel = 0
-                    #y_vel = 0
-                    #z_vel = 0
-                    #yaw_vel = 0
                     
-                    
+                    #print((angle_to_marker_in_ardrone_frame,yaw_vel))
                     #print((x_vel, y_vel, z_vel, yaw_vel, angle_to_marker_in_ardrone_frame))
                     #print((round(100*yaw_vel), round(100*self.pidyaw.ITerm)))
                     #print((self.pidx.last_error, self.pidy.last_error, self.pidz.last_error, self.pidyaw.last_error))
@@ -354,17 +360,14 @@ class ObjectTracker(object):
                     #self.ardrone_set_xyzy(0, 0, 0, 0)
                 else:
                     self.ardrone_set_xyzy(0, 0, 0, 0)
-
-            if self.state == 3:  # search for marker
-                pass
-            if self.state == 5:  # land
+                    self.state = 2
+            if self.state == 4:  # land
                 if self.ardrone_state == DroneStatus.Landed:
                     self.state = 0
                     print("Landed")
                 else:
                     self.ardrone_send_land()
-            if self.state == 6:
-                pass  # do nothing
+
             self.ardrone_update_rpyz(None)
 
             self.pub.publish(twist)

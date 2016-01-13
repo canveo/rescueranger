@@ -11,7 +11,7 @@ class PID(object):
         self.Kd = D
         
         self.DTerm = 0
-        self.lowpass_D_constant = 0.97
+        self.lowpass_D_constant = 0.95
         self.windup_guard = 10.0
         
         self.saturation = saturation

@@ -17,13 +17,13 @@ class KeyboardController(object):
 
     def callback_keyboard(self, data):
         self.key = data.code
-        if self.tracker:
+        if self.tracker: # 0=wait, 1=taking off, 2=search for marker,  3= aproach marker, 4= land
             if data.code == self.cmd_map['takeoff']:
                 if self.tracker.state == 0:
                     self.tracker.state = 1
                     print("Takeoff")
             elif data.code == self.cmd_map['land']:
-                self.tracker.state = 5
+                self.tracker.state = 4
                 print("Landing")
             elif data.code == self.cmd_map['emergency']:
                 self.tracker.state = 0
