@@ -20,9 +20,9 @@
         <param name="looprate" value="50" />
     </node>
   
-    <!--
+    
     <node name="drone_stateestimation" pkg="tum_ardrone" type="drone_stateestimation" launch-prefix="xterm -e" respawn="true"/>
-    -->
+    
     
      
     <node pkg="viewpoint_estimation" type="viewpoint_estimation" name="viewpoint_estimation" output="screen" launch-prefix="xterm -e" respawn="true">
